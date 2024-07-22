@@ -46,7 +46,7 @@ This repository contains a Django REST Framework project that enables users to u
 ### Installation
 
 1. Clone the repository: `git clone https://github.com/your-username/llm-pdf-chatbot.git`
-2. Navigate to the project directory: `cd llm-pdf-chatbot`
+2. Navigate to the project directory: `cd llm-pdf-chatbot/django_rest_api`
 3. Create a virtual environment: `python3 -m venv venv`
 4. Activate the virtual environment: `source venv/bin/activate`
 5. Install dependencies: `pip install -r requirements.txt`
