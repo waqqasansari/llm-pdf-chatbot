@@ -7,7 +7,6 @@ from rest_framework import status
 from .serializers import ChatInputSerializer, ChatOutputSerializer
 from .chatbot_logic import ChatbotLogic
 import uuid
-from .models import UploadedFile
 
 from rest_framework import viewsets
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -16,16 +15,19 @@ from .serializers import PDFDocumentSerializer
 
 class PDFUploadView(APIView):
     parser_classes = (MultiPartParser, FormParser)
+    print('inside pdf')
 
     def post(self, request, *args, **kwargs):
         pdf_file = request.data.get('pdf_file')
+        print('inside pdf post')
+        print(pdf_file)
 
         # Check if the file is a PDF
         if not pdf_file.name.endswith('.pdf'):
             return Response({"error": "File must be a PDF."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Create a new PDFDocument instance
-        pdf_document = PDFDocument(title=title, pdf_file=pdf_file)
+        pdf_document = PDFDocument(pdf_file=pdf_file)
         pdf_document.save()
 
         # Serialize the saved document
@@ -65,6 +67,7 @@ class ChatbotView(APIView):
             
             # Process the message
             response = chatbot.process_message(session_id, user_input)
+            print(response)
 
             output_serializer = ChatOutputSerializer({'ai_response': response['answer']})
             return Response(output_serializer.data, status=status.HTTP_200_OK)

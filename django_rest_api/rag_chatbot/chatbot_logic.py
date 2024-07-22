@@ -9,7 +9,27 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 # from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import os
+from pinecone import Pinecone, ServerlessSpec
+from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
+from langchain import OpenAI, PromptTemplate
+from PyPDF2 import PdfReader
+import markdown
+import random
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+import google.generativeai as genai
+from langchain_community.vectorstores import FAISS
+from langchain.chains.question_answering import load_qa_chain
+from langchain.prompts import PromptTemplate
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+from langchain.embeddings import OpenAIEmbeddings
+import time
+from .models import PDFDocument
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain.retrievers import BM25Retriever, EnsembleRetriever
+from langchain.retrievers.document_compressors import LLMChainExtractor
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain_community.vectorstores import FAISS
 
 class ChatbotLogic:
     def __init__(self):
@@ -21,16 +41,20 @@ class ChatbotLogic:
         self.llm = OpenAI(api_key=self.openai_api_key, model_name="gpt-3.5-turbo-instruct")
 
         print("Loading and processing PDF...")
-        docs = ""
-        for pdf in ['/content/room-finder-company-info.pdf']:
-            pdf_reader = PdfReader(pdf)
-            for page in pdf_reader.pages:
-                docs += page.extract_text()
+        latest_pdf = PDFDocument.objects.latest('uploaded_at')
+        pdf_file_path = latest_pdf.pdf_file.path
+        pdf_reader = PdfReader(pdf_file_path)
+        self.docs = ""
+        for page in pdf_reader.pages:
+            self.docs += page.extract_text()
+        print("docs" ,self.docs)
 
         print("Initializing embeddings and text splitting...")
-        embeddings = OpenAIEmbeddings()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        splits = text_splitter.split_text(docs)
+        self.embeddings = OpenAIEmbeddings()
+        self.semantic_chunker = SemanticChunker(self.embeddings, breakpoint_threshold_type="percentile")
+        # text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        # self.splits = self.semantic_chunker.create_documents(self.docs)
+        self.splits = self.semantic_chunker.split_text(self.docs)
 
         print("Setting up Pinecone index...")
         pc = Pinecone(api_key=self.pinecone_api_key)
@@ -54,16 +78,16 @@ class ChatbotLogic:
         print(index.describe_index_stats())
 
         print("Setting up Pinecone vector store...")
-        docsearch = PineconeVectorStore.from_texts(splits, embeddings, index_name=self.index_name)
+        docsearch = PineconeVectorStore.from_texts(self.splits, self.embeddings, index_name=self.index_name)
         print("Vector store setup complete.")
         print(docsearch)
-        retriever = docsearch.as_retriever()
+        self.retriever = docsearch.as_retriever()
 
         print("Setting up question-answering chains...")
         self.contextualize_q_system_prompt = """Given a chat history and the latest user question \
-which might reference context in the chat history, formulate a standalone question \
-which can be understood without the chat history. Do NOT answer the question, \
-just reformulate it if needed and otherwise return it as is."""
+                                                which might reference context in the chat history, formulate a standalone question \
+                                                which can be understood without the chat history. Do NOT answer the question, \
+                                                just reformulate it if needed and otherwise return it as is."""
         self.contextualize_q_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", self.contextualize_q_system_prompt),
@@ -72,15 +96,16 @@ just reformulate it if needed and otherwise return it as is."""
             ]
         )
         self.history_aware_retriever = create_history_aware_retriever(
-            self.llm, retriever, self.contextualize_q_prompt
+            self.llm, self.retriever, self.contextualize_q_prompt
         )
 
-        self.qa_system_prompt = """You are an assistant for question-answering tasks. \
-Use the following pieces of retrieved context to answer the question. \
-If you don't know the answer, just say that you don't know. \
-Use three sentences maximum and keep the answer concise.\
+        self.qa_system_prompt =  """You are an assistant for question-answering tasks. \
+                                    Keep the conversation natural, means if question is greetigs then you answer according to that
+                                    Use the following pieces of retrieved context to answer the question. \
+                                    If you don't know the answer, just say that you don't know. \
+                                    Use three sentences maximum and keep the answer concise.\
 
-{context}"""
+                                    {context}"""
         self.qa_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", self.qa_system_prompt),
