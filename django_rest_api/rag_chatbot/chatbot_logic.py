@@ -2,7 +2,6 @@ import bs4
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -14,22 +13,11 @@ from langchain_pinecone import PineconeVectorStore
 from dotenv import load_dotenv
 from langchain import OpenAI, PromptTemplate
 from PyPDF2 import PdfReader
-import markdown
-import random
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
-import google.generativeai as genai
-from langchain_community.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain.embeddings import OpenAIEmbeddings
 import time
 from .models import PDFDocument
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain.retrievers import BM25Retriever, EnsembleRetriever
-from langchain.retrievers.document_compressors import LLMChainExtractor
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain_community.vectorstores import FAISS
+
 
 class ChatbotLogic:
     def __init__(self):
