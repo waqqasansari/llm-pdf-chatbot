@@ -1,5 +1,3 @@
-Here is a sample README file for your GitHub repository:
-
 # **LLM-PDF-Chatbot**
 
 ## **Overview**
